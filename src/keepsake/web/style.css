@@ -46,34 +46,37 @@ a { color: var(--link); }
 .skip { position: absolute; left: -999px; top: 8px; background: var(--surface); color: var(--ink); padding: 10px 14px; z-index: 30; }
 .skip:focus { left: 8px; }
 
-/* the top bar: shown once, here only */
-.top {
-  min-height: 3.5rem; border-bottom: 1px solid var(--line); display: flex; align-items: center;
-  gap: 2rem; padding: 0 2rem; background: var(--bg);
+/* the side rail: brand, the four pages, the paused chip and the theme switch, always at the left of the page.
+   On a narrow screen the same nav becomes a tab bar fixed to the bottom edge (see the 820px block). */
+body { display: grid; grid-template-columns: 14rem minmax(0, 1fr); align-items: start; }
+.content { min-width: 0; }
+.rail {
+  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 0.25rem;
+  padding: 1.25rem 0.75rem; border-right: 1px solid var(--line); background: var(--bg); overflow-y: auto;
 }
 /* the brand: the real icon, inline (no extra request), beside a wordmark; the whole thing is one link to Folders */
-.brand { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--strong); text-decoration: none; font-weight: 700; font-size: 1.0625rem; letter-spacing: -0.01em; border-radius: 8px; }
-.brand .logo { width: 1.75rem; height: 1.75rem; flex: none; display: block; }
-.brand .wm-sub { font-weight: 400; font-size: 0.8125rem; letter-spacing: 0; color: var(--mute); margin-left: 0.125rem; }
-/* the menu: the page you are on is a filled pill with an accent underline and bold text; the others are plain and dimmer.
-   Hover shows a quiet grey underline, so hover can never be mistaken for "here". The hidden ::after holds the bold width,
-   so the items do not shift when the active page changes. */
-nav { display: flex; gap: 0.5rem; }
+.brand { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0.625rem; align-items: center; color: var(--strong); text-decoration: none; font-weight: 700; font-size: 1.0625rem; letter-spacing: -0.01em; border-radius: 8px; padding: 0 0.625rem 1.25rem; }
+.brand .logo { grid-row: 1 / span 2; width: 1.75rem; height: 1.75rem; display: block; }
+.brand .wordmark { line-height: 1.2; align-self: end; }
+.brand .wm-sub { font-weight: 400; font-size: 0.8125rem; letter-spacing: 0; color: var(--mute); line-height: 1.2; align-self: start; }
+/* the menu: the page you are on is a filled item with bold text; the others are plain and dimmer. Hover only tints, so
+   hover can never be mistaken for "here". */
+nav { display: flex; flex-direction: column; gap: 0.125rem; }
 nav a {
-  display: inline-flex; flex-direction: column; align-items: center; color: var(--mute); text-decoration: none;
-  padding: 0.5rem 0.875rem; border-radius: 8px; border-bottom: 2px solid transparent; font-weight: 500;
+  display: flex; align-items: center; gap: 0.75rem; color: var(--mute); text-decoration: none;
+  min-height: 2.5rem; padding: 0.5rem 0.75rem; border-radius: 9px; font-weight: 500;
 }
-nav a::after { content: attr(data-label); height: 0; overflow: hidden; visibility: hidden; font-weight: 700; }
-nav a:hover { color: var(--strong); border-bottom-color: var(--line-strong); }
-nav a[aria-current="page"] { color: var(--strong); font-weight: 700; background: var(--info-bg); border-bottom-color: var(--link); }
-.tools { margin-left: auto; display: flex; align-items: center; gap: 1rem; }
-.chip { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 2rem; padding: 0 0.875rem 0 0.75rem; border-radius: 99px; background: var(--wn-bg); color: var(--wn); font-size: 0.8125rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
+nav a .ni { width: 1.125rem; height: 1.125rem; flex: none; }
+nav a:hover { color: var(--strong); background: var(--seg); }
+nav a[aria-current="page"] { color: var(--strong); font-weight: 700; background: var(--info-bg); }
+.tools { margin-top: auto; display: flex; flex-direction: column; align-items: stretch; gap: 0.75rem; padding: 0.75rem 0.25rem 0; }
+.chip { display: flex; align-items: center; margin: 0.5rem 0.25rem 0; gap: 0.5rem; min-height: 2rem; padding: 0 0.875rem 0 0.75rem; border-radius: 99px; background: var(--wn-bg); color: var(--wn); font-size: 0.8125rem; font-weight: 600; text-decoration: none; }
 .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
 .chip:hover { text-decoration: underline; }
-.themeseg { display: flex; background: var(--seg); border-radius: 9px; padding: 3px; gap: 2px; }
+.themeseg { display: flex; justify-content: space-between; background: var(--seg); border-radius: 9px; padding: 3px; gap: 2px; }
 .themeseg button {
   border: 0; background: transparent; color: var(--mute); font: inherit; font-size: 0.8125rem; cursor: pointer;
-  padding: 0.3125rem 0.75rem; border-radius: 7px;
+  padding: 0.3125rem 0.5rem; border-radius: 7px; flex: 1;
 }
 .themeseg button[aria-pressed="true"] { background: var(--seg-on); color: var(--strong); box-shadow: 0 1px 2px rgba(0, 0, 0, .18); }
 .lnk { border: 0; background: transparent; color: var(--link); font: inherit; cursor: pointer; padding: 0; white-space: nowrap; text-decoration: none; }
@@ -86,8 +89,11 @@ nav a[aria-current="page"] { color: var(--strong); font-weight: 700; background:
 @media (max-width: 820px) { .back { min-height: var(--tap); } }
 
 /* the page */
-main { padding: 2.125rem 2rem 4.5rem; max-width: 77.5rem; outline: none; }
-#banner:not(:empty) { padding: 1.25rem 2rem 0; max-width: 77.5rem; }
+main { padding: 2.125rem 2.5rem 4.5rem; outline: none; }
+#banner:not(:empty) { padding: 1.25rem 2.5rem 0; }
+/* the page follows the screen; only the pages that are a form or a reading column keep a measure */
+main[data-page="settings"], main[data-page="add"], main[data-page="job"], main[data-page="locations"] { max-width: 70rem; }
+main[data-page="activity"], main[data-page="deleted"] { max-width: 90rem; }
 h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -.015em; margin: 0 0 0.25rem; color: var(--strong); line-height: 1.2; text-wrap: balance; }
 h2 { font-size: 1rem; font-weight: 600; margin: 2rem 0 0.5rem; color: var(--strong); }
 .lead { color: var(--mute); margin: 0 0 1.5rem; max-width: 40rem; }
@@ -124,26 +130,38 @@ td b, td strong { color: var(--strong); }
 .strip .nb:hover::before { outline: 2px solid var(--line-strong); outline-offset: 1px; }
 .strip .nb:focus-visible { outline-offset: 0; }
 .act { white-space: nowrap; }
-.act .lnk, .act a { display: inline-block; }
-.act > * + * { margin-left: 0.5rem; }
 .act .sync { font-weight: 600; }
 .more > td { padding-top: 0; border-bottom: 1px solid var(--line2); }
 .more .notice { margin: 0 0 0.25rem; }
-/* compact rows: one short line per fact, the whole sentence in the title and for screen readers */
-/* A fixed layout: every column keeps its width whatever the fonts or the state, and a long text is cut with an ellipsis (its whole value is in the title) instead of widening the table. */
-table.folders { table-layout: fixed; min-width: 72rem; }
-table.folders th, table.folders td, table.folders th[scope="row"] { padding: 0.5rem; }
-table.folders .c-status { width: 9.5rem; white-space: nowrap; }   /* room for the widest pill */
-table.folders .c-nights { width: 15rem; }   /* 14 bars of 16px and the cell padding */
-table.folders .c-last { width: 16rem; }
-table.folders .c-ver { width: 11rem; }
-table.folders .c-kept { width: 3.25rem; }
-table.folders .c-act { width: 7.5rem; }   /* room for "Working" too */
-table.folders .c-last, table.folders .c-ver, table.folders .c-folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-table.folders .c-folder .src { overflow: hidden; text-overflow: ellipsis; }
-table.folders .c-last .changes { white-space: normal; }   /* the changed files of the last run wrap inside their cell */
+/* one card per folder in a grid that follows the screen: the name and status, the nights, then the facts and the actions */
+.tablewrap { overflow: visible; }
+table.folders { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr)); gap: 1rem; margin-top: 1.25rem; }
+table.folders thead { position: absolute; left: -9999px; }
+table.folders tbody, table.folders tr, table.folders td, table.folders th[scope="row"] { display: block; }
+table.folders tbody.job { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.125rem 0.75rem; min-width: 0; }
+table.folders tbody.job.s-failed { border-color: var(--bad); }
+table.folders tr.f { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name status" "nights nights" "last last" "ver ver" "kept kept" "act act"; gap: 0.25rem 0.75rem; align-items: center; }
+table.folders tr.f > * { padding: 0; border: 0; width: auto; min-width: 0; max-width: none; }
+table.folders tr.f > th.c-folder { grid-area: name; white-space: normal; }
+table.folders tr.f > td.c-status { grid-area: status; }
+table.folders tr.f > td.nights { grid-area: nights; margin: 0.625rem 0 0.375rem; }
+table.folders tr.f > td.c-last { grid-area: last; }
+table.folders tr.f > td.c-ver { grid-area: ver; }
+table.folders tr.f > td.c-kept { grid-area: kept; }
+table.folders tr.f > td.c-kept.zero { display: none; }
+table.folders tr.f > td.act { grid-area: act; display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--line2); }
+table.folders tr.f > td.col { display: flex; gap: 0.75rem; align-items: baseline; min-height: 1.75rem; }
+table.folders tr.f > td.col::before { content: attr(data-label); color: var(--mute); flex: none; min-width: 5rem; }
+table.folders .c-folder .src { max-width: none; }
+table.folders .c-last .changes { white-space: normal; }   /* the changed files of the last run wrap inside the card */
+table.folders tr.more { display: block; padding-top: 0.5rem; }
+table.folders tr.more > td { padding: 0; border: 0; }
+.act > * + * { margin-left: 0; }
+.act .lnk, .act a { display: inline-flex; align-items: center; justify-content: center; min-height: 2.25rem; min-width: 2.25rem; }
+.act .sync { padding: 0 1rem; border: 1px solid var(--line-strong); border-radius: var(--r); }
+.act .sync:hover:not([disabled]) { background: var(--seg); text-decoration: none; }
 .lr { white-space: nowrap; }
-.lr .what { display: inline-block; max-width: 9.5rem; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }   /* a long summary is cut before the time */
+.lr .what { display: inline-block; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }   /* a long summary is cut before the time */
 .tag { display: inline-block; margin-left: 0.4rem; padding: 0 0.5rem; border-radius: 99px; font-size: 0.75rem; line-height: 1.5; background: var(--bad-bg); color: var(--bad); white-space: nowrap; vertical-align: bottom; }
 .ver.bad { color: var(--bad); font-weight: 600; }
 .ver.quiet, .quiet { color: var(--faint); }
@@ -360,52 +378,38 @@ main:focus, main:focus-visible { outline: none; }
 main p, main li { max-width: 44rem; }
 main .recent p, main .recent li, main .plain li, main .picker li, main .chosen-list li, main .notices li, main .result-list li, dialog li { max-width: none; }
 
-/* narrow screens: a compact top bar, and the table becomes stacked rows */
+/* narrow screens: a slim top bar with the brand and the theme, the four pages as a tab bar fixed to the bottom edge */
 @media (max-width: 820px) {
-  .top { flex-wrap: wrap; gap: 0 1rem; padding: 0.5rem 1rem 0; min-height: 0; }
-  .brand { display: flex; align-items: center; min-height: var(--tap); }
+  body { display: block; }
+  .rail { position: sticky; top: 0; z-index: 10; height: auto; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 0 0.75rem; padding: 0.25rem 1rem; border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+  .brand { display: flex; align-items: center; gap: 0.5rem; min-height: var(--tap); padding: 0; }
   .brand .logo { width: 1.5rem; height: 1.5rem; }
+  .brand .wordmark { align-self: center; }
   .brand .wm-sub { display: none; }
-  .tools { margin-left: auto; min-height: var(--tap); }
-  .themeseg button { min-height: var(--tap); min-width: var(--tap); padding: 0 0.75rem; }
-  .fname, .tap { display: inline-flex; align-items: center; min-height: var(--tap); min-width: var(--tap); }
-  .themeseg { padding: 3px; }
+  .tools { margin: 0 0 0 auto; flex-direction: row; align-items: center; min-height: var(--tap); padding: 0; }
+  .themeseg button { min-height: var(--tap); min-width: var(--tap); padding: 0 0.75rem; flex: none; }
   .tools .lnk { min-height: var(--tap); padding: 0 6px; }
-  nav { order: 3; flex-basis: 100%; gap: 0; justify-content: space-between; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
-  nav a { display: flex; flex-direction: column; justify-content: center; flex: 1 0 auto; min-height: var(--tap); padding: 0 0.5rem; border-radius: 8px 8px 0 0; border-bottom: 3px solid transparent; }
-  nav a[aria-current="page"] { border-bottom-color: var(--link); }
-  main { padding: 1.5rem 1rem 3.5rem; }
+  .chip { order: 2; margin: 0; }
+  nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 12; flex-direction: row; gap: 0; padding: 0 0 env(safe-area-inset-bottom); background: var(--bg); border-top: 1px solid var(--line); }
+  nav a { flex: 1 1 0; min-width: 0; flex-direction: column; justify-content: center; gap: 0.125rem; min-height: 3.5rem; padding: 0.375rem 0.25rem; border-radius: 0; font-size: 0.6875rem; text-align: center; white-space: nowrap; }
+  nav a[aria-current="page"] { background: transparent; color: var(--link); box-shadow: inset 0 3px 0 var(--link); }
+  main { padding: 1.5rem 1rem calc(5.5rem + env(safe-area-inset-bottom)); }
   #banner:not(:empty) { padding: 1rem 1rem 0; }
+  main[data-page] { max-width: none; }
+  .fname, .tap { display: inline-flex; align-items: center; min-height: var(--tap); min-width: var(--tap); }
   .log li { grid-template-columns: 1fr; }
   .btn { flex: 1 1 auto; }
   .crumbs .btn { flex: none; }
   .recent .l { grid-template-columns: 1fr; }
-  .tablewrap { overflow: visible; }
-  table.folders { min-width: 0; table-layout: auto; }
-  table.folders, table.folders tbody, table.folders tr, table.folders td, table.folders th[scope="row"] { display: block; }
-  table.folders thead { position: absolute; left: -9999px; }
-  table.folders tbody.job { padding: 0.75rem 0; border-bottom: 1px solid var(--line); }
-  /* key facts first: name and status, when it last ran, how it checked and the actions, then the nights */
-  table.folders tr.f { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name status" "last last" "ver act" "nights nights" "kept kept"; gap: 0.125rem 0.75rem; align-items: center; }
-  table.folders tr.f > * { padding: 0; border: 0; }
-  table.folders tr.f > th[scope="row"] { grid-area: name; }
-  table.folders tr.f > td.status { grid-area: status; width: auto; }
-  table.folders tr.f > td.c-last { grid-area: last; }
-  table.folders tr.f > td.c-ver { grid-area: ver; min-width: 0; }
-  table.folders tr.f > td.act { grid-area: act; display: flex; align-items: center; width: auto; }
-  table.folders tr.f > td.nights { grid-area: nights; width: auto; min-width: 0; }
-  table.folders tr.f > td.c-kept { grid-area: kept; width: auto; }
-  table.folders tr.f > td.c-kept.zero { display: none; }
-  table.folders tr.f > td.col { display: flex; gap: 0.5rem; align-items: baseline; min-width: 0; }
-  table.folders tr.f > td.col::before { content: attr(data-label); color: var(--mute); flex: none; min-width: 4.25rem; }
-  .act .lnk, .act a { display: inline-flex; align-items: center; justify-content: center; min-height: var(--tap); min-width: var(--tap); padding: 0 0.75rem; }
+  table.folders { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
+  /* 14 bars must each stay at least 24px wide (WCAG 2.5.8) on a 390px screen: a slimmer card and the strip bleeds a little into it */
+  table.folders tbody.job { padding: 0.875rem 0.875rem 0.625rem; }
+  table.folders tr.f > td.nights { margin-inline: -0.375rem; }
+  .act .lnk, .act a { min-height: var(--tap); min-width: var(--tap); padding: 0 0.75rem; }
+  .act .sync { padding: 0 1.25rem; }
   .menu .mi { justify-content: flex-start; }
-  table.folders tr.f > * { width: auto; min-width: 0; max-width: none; }
-  table.folders tr.f > th.c-folder { white-space: normal; overflow: visible; }
-  table.folders .c-folder .src { max-width: none; }
   .lr .what { max-width: 14rem; }
-  table.folders tr.more { display: block; padding-top: 0.5rem; }
-  table.folders tr.more > td { padding: 0; border: 0; }
+  .toast { bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
@@ -415,16 +419,19 @@ main .recent p, main .recent li, main .plain li, main .picker li, main .chosen-l
   dialog::backdrop { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
   .toast { background: color-mix(in srgb, var(--strong) 90%, transparent); -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%); }
   @media (max-width: 820px) {
-    .top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); }
+    /* the blur goes on the bar and the tabs separately: a blurred .rail would become the containing block of the fixed tab bar */
+    .rail { background: color-mix(in srgb, var(--bg) 86%, transparent); }
+    nav { background: color-mix(in srgb, var(--bg) 86%, transparent); -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); }
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  dialog, .toast, .top, dialog::backdrop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  dialog, .toast, .rail, nav, dialog::backdrop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
   dialog { background: var(--surface); }
   .toast { background: var(--strong); }
-  .top { background: var(--bg); }
+  .rail, nav { background: var(--bg); }
 }
-@media (forced-colors: active) { nav a[aria-current="page"], .tab[aria-selected="true"] { border-bottom-color: Highlight; forced-color-adjust: none; color: CanvasText; background: Canvas; } }
+@media (forced-colors: active) { nav a[aria-current="page"] { outline: 2px solid Highlight; forced-color-adjust: none; color: CanvasText; background: Canvas; }
+  .tab[aria-selected="true"] { border-bottom-color: Highlight; forced-color-adjust: none; color: CanvasText; background: Canvas; } }
 @media (prefers-contrast: more) {
   :root { --line: light-dark(#5c6e7d, #7f93a5); --line2: light-dark(#8593a0, #5f7081); --mute: light-dark(#2f4050, #c9d6e0); --faint: light-dark(#364656, #c0ced9); --bar-n: light-dark(#98a2b3, #6a747c); }
   .strip i.e { box-shadow: inset 0 0 0 1px var(--mute); }
@@ -472,7 +479,6 @@ dialog.wide > .row.end { position: sticky; bottom: -24px; padding: 12px 0 0; mar
 dialog .changes { max-height: 14rem; overflow: auto; overflow-wrap: anywhere; }
 dialog.sheet h2 { overflow-wrap: anywhere; }
 @media (max-width: 820px) {
-  .chip { order: 2; margin-left: 0; }
   .strip { margin-left: 0; width: 100%; }
   .strip .nb { flex: 1 1 0; width: auto; min-width: 0; height: var(--tap); }
   .strip .nb::before { left: 50%; transform: translateX(-50%); top: 9px; }

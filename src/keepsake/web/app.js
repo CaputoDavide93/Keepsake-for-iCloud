@@ -2216,10 +2216,7 @@
         if (a.dataset.page === section) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
       });
       document.getElementById("nav").hidden = false;
-      // On a phone the menu may scroll inside itself: centre the current item. Not scrollIntoView, which also
-      // moves the browser's keyboard starting point, so the first Tab would skip the skip link.
-      var here = document.querySelector('#nav a[aria-current="page"]'), strip = document.getElementById("nav");
-      if (here && strip.scrollWidth > strip.clientWidth + 1) strip.scrollLeft = here.offsetLeft - (strip.clientWidth - here.offsetWidth) / 2;
+      view.setAttribute("data-page", section);
       var pages = { folders: pageFolders, add: pageAdd, locations: pageLocations, activity: pageActivity, settings: pageSettings };
       if (page === "job" && seg[1]) pageJob(decodeURIComponent(seg[1]));
       else if (page === "deleted" && seg[1]) pageDeleted(decodeURIComponent(seg[1]));
