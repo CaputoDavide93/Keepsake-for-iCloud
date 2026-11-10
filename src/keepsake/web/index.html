@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Keepsake for iCloud</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/touch-icon.png">
+<link rel="stylesheet" href="/style.css">
+<script src="/theme.js"></script>
+</head>
+<body>
+<a class="skip" href="#view">Skip to content</a>
+<header class="top">
+  <a class="brand" href="#/folders" aria-label="Keepsake, Folders">
+    <svg class="logo" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+      <defs><linearGradient id="kb-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b7cfa"/><stop offset="1" stop-color="#3550c9"/></linearGradient></defs>
+      <rect width="1024" height="1024" rx="225" fill="url(#kb-g)"/>
+      <g fill="none" stroke="#f8fafc" stroke-width="61" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M262 372v280a56 56 0 0 0 56 56h388a56 56 0 0 0 56-56V412a56 56 0 0 0-56-56H530l-60-72H318a56 56 0 0 0-56 56z"/>
+        <path d="M426 540l62 62 114-122"/>
+      </g>
+    </svg>
+    <span class="wordmark">Keepsake</span><span class="wm-sub">for iCloud</span>
+  </a>
+  <nav id="nav" aria-label="Main">
+    <a href="#/folders" data-page="folders" data-label="Folders">Folders</a>
+    <a href="#/activity" data-page="activity" data-label="Activity">Activity</a>
+    <a href="#/deleted" data-page="deleted" data-label="Deleted files">Deleted files</a>
+    <a href="#/settings" data-page="settings" data-label="Settings">Settings</a>
+  </nav>
+  <a id="pausechip" class="chip" href="#/settings/pause" hidden></a>
+  <div class="tools">
+    <button type="button" id="logout" class="lnk" hidden>Log out</button>
+    <div class="themeseg" id="theme" role="group" aria-label="Theme">
+      <button type="button" data-t="light" aria-pressed="false">Light</button>
+      <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+      <button type="button" data-t="auto" aria-pressed="true">Auto</button>
+    </div>
+  </div>
+</header>
+<div id="banner" role="status" aria-live="polite"></div>
+<main id="view" tabindex="-1"><p class="muted">Loading</p></main>
+<div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
+<dialog id="dlg" aria-labelledby="dlg-title"></dialog>
+<noscript><p class="pad">Keepsake needs JavaScript for its web page. Nothing is loaded from other sites.</p></noscript>
+<script src="/app.js"></script>
+</body>
+</html>

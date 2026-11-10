@@ -1,0 +1,19 @@
+{
+  "roots": {
+    "documents": "/sources/documents",
+    "photos": "/sources/photos"
+  },
+  "icloud_dir": "/icloud",
+  "max_dest_gb": 150,
+  "min_free_gb": 20,
+  "shrink_pct": 20,
+  "fs_roots": [],
+  "root_markers": {},
+  "host": "127.0.0.1",
+  "port": 8765,
+  "smtp_host": "smtp.example.test",
+  "smtp_port": 587,
+  "smtp_security": "starttls",
+  "smtp_from": "keepsake@example.test",
+  "smtp_to": ["you@example.test"]
+}

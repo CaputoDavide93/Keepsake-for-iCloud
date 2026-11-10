@@ -1,0 +1,8 @@
+{
+  "name": "keepsake-ui-tools",
+  "private": true,
+  "description": "Headless-browser smoke test and screenshots for Keepsake. Dev only.",
+  "devDependencies": {
+    "playwright-core": "1.49.1"
+  }
+}

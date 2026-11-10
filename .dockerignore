@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+.env
+.env.*
+!.env.example
+docs
+tests
+tools
+scripts
+config
+*.md
+Makefile
+.DS_Store

@@ -1,0 +1,48 @@
+# Written, not yet enabled: this repository has not been pushed anywhere.
+# It runs when the repository is published to GitHub.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.8.6
+      - name: Gate (lint, tests, scrub, diagram)
+        run: make check
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build a throwaway image and prove the safety behaviours
+        run: make docker-smoke
+
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: make ui-setup
+      - name: Install a headless Chromium
+        run: cd tools/ui && npx playwright-core install --with-deps chromium
+      - name: UI smoke test
+        run: |
+          export KEEPSAKE_CHROMIUM="$(cd tools/ui && node -e 'console.log(require("playwright-core").chromium.executablePath())')"
+          make ui-test

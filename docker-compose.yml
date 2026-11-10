@@ -1,0 +1,48 @@
+# Keepsake for iCloud on macOS with Docker Desktop. See docs/macos-docker-desktop.md.
+# Copy .env.example to .env and set the three values marked CHANGE_ME first.
+services:
+  keepsake:
+    build: .
+    image: keepsake-for-icloud:local
+    container_name: keepsake
+    restart: unless-stopped
+    # Published on this Mac only. To reach it from another device, put a TLS
+    # reverse proxy in front (docs/security.md); do not widen this line.
+    ports:
+      - "127.0.0.1:${KEEPSAKE_HOST_PORT:-8765}:8765"
+    environment:
+      KEEPSAKE_PASSWORD: ${KEEPSAKE_PASSWORD:?set KEEPSAKE_PASSWORD in .env (at least 10 characters)}
+      KEEPSAKE_ROOTS: ${KEEPSAKE_ROOTS:-sources=/sources}
+      TZ: ${TZ:-UTC}
+      KEEPSAKE_MAX_DEST_GB: ${KEEPSAKE_MAX_DEST_GB:-150}
+      KEEPSAKE_MIN_FREE_GB: ${KEEPSAKE_MIN_FREE_GB:-20}
+      KEEPSAKE_SHRINK_PCT: ${KEEPSAKE_SHRINK_PCT:-20}
+    volumes:
+      # Your folders, read-only: Keepsake can never change an original.
+      - type: bind
+        source: ${KEEPSAKE_SOURCES_HOST_DIR:?set KEEPSAKE_SOURCES_HOST_DIR in .env}
+        target: /sources
+        read_only: true
+      # The Keepsake folder inside iCloud Drive, the only writable path.
+      - type: bind
+        source: ${KEEPSAKE_ICLOUD_HOST_DIR:?set KEEPSAKE_ICLOUD_HOST_DIR in .env}
+        target: /icloud
+      - keepsake-data:/data
+      # Optional, to add locations from the page: mount a broad parent read-only under
+      # /hostfs (here or in docker-compose.override.yml); see docs/macos-docker-desktop.md.
+      #   - type: bind
+      #     source: /Volumes
+      #     target: /hostfs/volumes
+      #     read_only: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    pids_limit: 256
+
+volumes:
+  keepsake-data:

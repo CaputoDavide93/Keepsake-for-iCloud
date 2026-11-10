@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+.venv*/
+build/
+dist/
+*.egg-info/
+.ruff_cache/
+
+# Node (UI tools)
+node_modules
+
+# macOS / editors
+.DS_Store
+*.code-workspace
+
+# Local data and test output
+/data/
+/tmp/
+.deny-local
+
+# Secrets and credentials: never commit
+.env
+.env.*
+!.env.example
+secrets.yaml
+secrets.yml
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+id_rsa
+id_ed25519
+credentials.json
+service-account*.json
+google-services.json
+GoogleService-Info.plist

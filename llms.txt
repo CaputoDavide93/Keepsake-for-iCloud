@@ -1,0 +1,23 @@
+# Keepsake for iCloud
+
+> Keeps your folders safe in iCloud Drive. A one-way mirror from folders you choose into iCloud Drive/Keepsake/<job>, with a built-in web page and REST API. Not affiliated with or endorsed by Apple Inc.; iCloud is a trademark of Apple Inc.
+
+Tested environments: unit, API and UI tests on macOS with Python 3.13; the container image built and exercised on Docker Desktop for Mac against fixture folders. Not tested against a real iCloud Drive account.
+
+## Install
+- macOS plus Docker Desktop: copy .env.example to .env, set KEEPSAKE_PASSWORD and the two host paths, run `docker compose up -d --build`, open http://localhost:8765.
+- Native on macOS: Python 3.11+, no dependencies; `PYTHONPATH=src python3 -m keepsake`.
+
+## Key facts
+- iCloud Drive exists as a folder only on macOS; Linux and Windows are not supported.
+- Originals are only read. Default mode keeps replaced and deleted files under .deleted for 30 days.
+- Refuses to run when the source looks empty or shrank, the iCloud folder is not confirmed, or a destination folder is not its own.
+- Preview next sync reports what a sync would do, strictly read-only. Pause everything and quiet hours stop scheduled syncs and checks, never a running sync.
+- Binds to 127.0.0.1; refuses to start on any other address without a password.
+
+## Docs
+- README.md
+- docs/macos-docker-desktop.md
+- docs/safety-model.md
+- docs/security.md
+- docs/api.md

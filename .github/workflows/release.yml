@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Verify the release version
+        run: |
+          set -euo pipefail
+          pyproject_version="$(sed -n 's/^version = "\([^"]*\)"$/\1/p' pyproject.toml)"
+          package_version="$(sed -n 's/^__version__ = "\([^"]*\)"$/\1/p' src/keepsake/__init__.py)"
+          if [[ -z "$pyproject_version" ]]; then
+            echo "No project version was found in pyproject.toml." >&2
+            exit 1
+          fi
+          if [[ -z "$package_version" ]]; then
+            echo "No package version was found in src/keepsake/__init__.py." >&2
+            exit 1
+          fi
+          if [[ "$TAG" != "v$pyproject_version" || "$TAG" != "v$package_version" ]]; then
+            echo "Tag $TAG must equal v$pyproject_version from pyproject.toml and v$package_version from src/keepsake/__init__.py." >&2
+            exit 1
+          fi
+      - name: Fail early when the changelog has no section for this tag
+        run: scripts/release-notes.sh "$TAG" > /dev/null
+
+  gate:
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.13"
+      - run: pip install ruff==0.8.6
+      - name: Gate (lint, tests, scrub, diagram)
+        run: make check
+
+  docker:
+    needs: preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Build and test the Docker image
+        run: make docker-smoke
+
+  release:
+    needs: [gate, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Extract release notes
+        run: scripts/release-notes.sh "$TAG" > "$RUNNER_TEMP/release-notes.md"
+      - name: Create the GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$TAG" --title "$TAG" --notes-file "$RUNNER_TEMP/release-notes.md"
+      - name: Attach a source tarball and its checksums
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tarball="keepsake-for-icloud-${TAG#v}.tar.gz"
+          git archive --format=tar.gz --prefix="keepsake-for-icloud-${TAG#v}/" -o "$tarball" "$TAG"
+          sha256sum "$tarball" > SHA256SUMS
+          gh release upload "$TAG" "$tarball" SHA256SUMS --clobber
+
+  ghcr:
+    if: vars.PUBLISH_GHCR == 'true'
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Log in to the GitHub Container Registry
+        run: printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Build and push the versioned image
+        run: |
+          set -euo pipefail
+          repository="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/$repository:${TAG#v}"
+          docker build --tag "$image" .
+          docker push "$image"
