@@ -13,7 +13,7 @@
 </head>
 <body>
 <a class="skip" href="#view">Skip to content</a>
-<header class="top">
+<header class="rail">
   <a class="brand" href="#/folders" aria-label="Keepsake, Folders">
     <svg class="logo" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
       <defs><linearGradient id="kb-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b7cfa"/><stop offset="1" stop-color="#3550c9"/></linearGradient></defs>
@@ -26,10 +26,10 @@
     <span class="wordmark">Keepsake</span><span class="wm-sub">for iCloud</span>
   </a>
   <nav id="nav" aria-label="Main">
-    <a href="#/folders" data-page="folders" data-label="Folders">Folders</a>
-    <a href="#/activity" data-page="activity" data-label="Activity">Activity</a>
-    <a href="#/deleted" data-page="deleted" data-label="Deleted files">Deleted files</a>
-    <a href="#/settings" data-page="settings" data-label="Settings">Settings</a>
+    <a href="#/folders" data-page="folders" data-label="Folders"><svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Folders</a>
+    <a href="#/activity" data-page="activity" data-label="Activity"><svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</a>
+    <a href="#/deleted" data-page="deleted" data-label="Deleted files"><svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>Deleted files</a>
+    <a href="#/settings" data-page="settings" data-label="Settings"><svg class="ni" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM4 12h2m12 0h2M12 4v2m0 12v2"/></svg>Settings</a>
   </nav>
   <a id="pausechip" class="chip" href="#/settings/pause" hidden></a>
   <div class="tools">
@@ -41,8 +41,10 @@
     </div>
   </div>
 </header>
+<div class="content">
 <div id="banner" role="status" aria-live="polite"></div>
 <main id="view" tabindex="-1"><p class="muted">Loading</p></main>
+</div>
 <div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
 <dialog id="dlg" aria-labelledby="dlg-title"></dialog>
 <noscript><p class="pad">Keepsake needs JavaScript for its web page. Nothing is loaded from other sites.</p></noscript>

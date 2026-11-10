@@ -444,23 +444,32 @@ try {
     assert.match(await documents.locator(".changes").innerText(), /removed: Taxes\/return-2018\.pdf/);
   });
 
-  await test("folder rows are compact: one to two short lines, nothing wraps, nothing scrolls sideways", async () => {
+  await test("each folder is a card in a grid that fills the screen; nothing wraps, nothing scrolls sideways", async () => {
     await page.goto(base + "/#/folders");
     await page.reload();      // a hash change alone keeps the page, with a folder's changed files left open by an earlier test
     await page.waitForSelector(".job");
     const m = await page.evaluate(() => {
-      const wrap = document.querySelector(".tablewrap");
+      const cards = [...document.querySelectorAll("tbody.job")].map((r) => r.getBoundingClientRect());
+      const grid = document.querySelector("table.folders").getBoundingClientRect();
+      const main = document.querySelector("main");
       return {
-        rows: [...document.querySelectorAll("tr.f")].map((r) => Math.round(r.getBoundingClientRect().height)),
+        cols: new Set(cards.map((c) => Math.round(c.x))).size,
+        right: Math.round(Math.max(...cards.map((c) => c.right))), gridRight: Math.round(grid.right), mainRight: Math.round(main.getBoundingClientRect().right - parseFloat(getComputedStyle(main).paddingRight)),
         lines: [...document.querySelectorAll("tr.f td.c-last, tr.f td.c-ver")].map((c) => {
           const line = parseFloat(getComputedStyle(c).lineHeight);
           return Math.round((c.querySelector(".lr") || c.querySelector(".ver")).getBoundingClientRect().height / line * 10) / 10;
         }),
-        sideways: wrap.scrollWidth - wrap.clientWidth };
+        sideways: document.documentElement.scrollWidth - window.innerWidth };
     });
-    assert.ok(m.rows.every((h) => h <= 64), "rows are " + m.rows.join(", ") + "px tall");
+    assert.ok(m.cols >= 2, "cards sit side by side at 1280px: " + m.cols + " column(s)");
+    assert.ok(Math.abs(m.gridRight - m.mainRight) <= 1 && m.right <= m.gridRight, "the grid fills the page: " + JSON.stringify(m));
     assert.ok(m.lines.every((n) => n <= 1.2), "last run and verified wrap: " + m.lines.join(", ") + " lines");
-    assert.ok(m.sideways <= 0, "the table scrolls sideways by " + m.sideways + "px");
+    assert.ok(m.sideways <= 0, "the page scrolls sideways by " + m.sideways + "px");
+    await page.setViewportSize({ width: 2000, height: 900 });
+    const wide = await page.evaluate(() => ({ cols: new Set([...document.querySelectorAll("tbody.job")].map((r) => Math.round(r.getBoundingClientRect().x))).size,
+      right: Math.round(document.querySelector("table.folders").getBoundingClientRect().right), sideways: document.documentElement.scrollWidth - window.innerWidth }));
+    assert.ok(wide.cols >= 3 && wide.right > 1800 && wide.sideways <= 0, "the page follows a wide screen: " + JSON.stringify(wide));
+    await page.setViewportSize({ width: 1280, height: 800 });
   });
 
   await test("the short row text keeps the whole value in its title and for screen readers", async () => {
@@ -530,7 +539,7 @@ try {
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 
-  await test("on a phone a row is a short card with the key facts first, and its menu stays on screen", async () => {
+  await test("on a phone a folder is one card: name, nights, then the facts, and its menu stays on screen", async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(base + "/#/folders");
     await page.waitForSelector(".job");
@@ -539,8 +548,8 @@ try {
       return { card: Math.round(r("tr.f").height), name: r(".fname").y, last: r("td.c-last").y, ver: r("td.c-ver").y, nights: r("td.nights").y,
         sideways: document.documentElement.scrollWidth - window.innerWidth };
     });
-    assert.ok(g.name < g.last && g.last < g.ver && g.ver < g.nights, "facts before the nights: " + JSON.stringify(g));
-    assert.ok(g.card <= 260, "the card is " + g.card + "px tall");
+    assert.ok(g.name < g.nights && g.nights < g.last && g.last < g.ver, "name, then the nights, then the facts: " + JSON.stringify(g));
+    assert.ok(g.card <= 340, "the card is " + g.card + "px tall");
     assert.ok(g.sideways <= 0, "scrolls sideways by " + g.sideways + "px");
     await page.click('.job[data-job="photos"] button.morebtn');
     const box = await page.locator('.job[data-job="photos"] [role="menu"]').boundingBox();
@@ -1040,14 +1049,14 @@ try {
     await blocked.close();
   });
 
-  await test("the menu is rendered once: one nav, at the top, and none after the content", async () => {
+  await test("the menu is rendered once: one nav, in the rail, and none after the content", async () => {
     for (const hash of ["folders", "activity", "deleted", "settings", "help", "add"]) {
       await page.goto(base + "/#/" + hash);
       await page.waitForSelector("main h1");
       assert.equal(await page.locator("nav").count(), 1, hash);
       assert.equal(await page.locator("#nav a").count(), 4, hash);
       assert.deepEqual(await page.locator("#nav a").allInnerTexts(), ["Folders", "Activity", "Deleted files", "Settings"]);
-      assert.equal(await page.locator("header.top nav").count(), 1);
+      assert.equal(await page.locator("header.rail nav").count(), 1);
       const below = await page.evaluate(() => {
         const main = document.querySelector("main").getBoundingClientRect().bottom;
         return [...document.querySelectorAll("nav, nav a")].filter((n) => n.getBoundingClientRect().top >= main).length;
@@ -1095,7 +1104,7 @@ try {
     }
   });
 
-  await test("the page you are on is unmistakable: bold, accent underline, filled; hover and focus look different; AA contrast in light and dark", async () => {
+  await test("the page you are on is unmistakable: bold and filled; hover and focus look different; AA contrast in light and dark", async () => {
     await page.goto(base + "/#/activity");
     await page.waitForSelector("main h1");
     for (const scheme of ["light", "dark"]) {
@@ -1106,17 +1115,16 @@ try {
       assert.ok(here.weight >= 700 && other.weight <= 500, `${scheme}: bold only where you are (${here.weight}/${other.weight})`);
       assert.notEqual(here.bg, "rgba(0, 0, 0, 0)", `${scheme}: the current item is filled`);
       assert.equal(other.bg, "rgba(0, 0, 0, 0)", `${scheme}: the others are not`);
-      assert.notEqual(here.underline, other.underline, `${scheme}: the underline marks it`);
       assert.ok(contrast(here.color, here.bg) >= 4.5, `${scheme}: current item contrast ${contrast(here.color, here.bg).toFixed(2)}`);
       assert.ok(contrast(other.color, pageBg) >= 4.5, `${scheme}: other items contrast ${contrast(other.color, pageBg).toFixed(2)}`);
       assert.ok(contrast(here.color, pageBg) > contrast(other.color, pageBg), `${scheme}: the current item is stronger than the rest`);
-      // hover: a quiet grey underline, not the accent: hover must never read as "you are here"
+      // hover only tints a plain item: it is not bold and not the filled accent, so it never reads as "you are here"
       const folders = page.locator('#nav a[data-page="folders"]');
       await folders.hover();
       const hovered = await navStyle(folders);
-      assert.notEqual(hovered.underline, here.underline, `${scheme}: hover is not the accent underline`);
-      assert.notEqual(hovered.underline, other.underline, `${scheme}: hover shows something`);
-      assert.equal(hovered.bg, "rgba(0, 0, 0, 0)", `${scheme}: hover is not filled`);
+      assert.notEqual(hovered.bg, here.bg, `${scheme}: hover is not the filled current item`);
+      assert.notEqual(hovered.bg, "rgba(0, 0, 0, 0)", `${scheme}: hover shows something`);
+      assert.ok(hovered.weight <= 500, `${scheme}: hover is not bold`);
       await page.mouse.move(0, 400);
     }
     await page.emulateMedia({ colorScheme: null });
@@ -1128,7 +1136,7 @@ try {
     const focused = await navStyle(page.locator("#nav a:focus"));
     assert.notEqual(focused.outline, "none", "a focused menu item shows a ring");
     assert.equal(focused.outlineWidth, "3px");
-    // Settings tabs read the same way: the selected tab is filled and underlined, the others are plain
+    // Settings tabs: the selected tab is filled and underlined, the others are plain
     await page.goto(base + "/#/settings/alerts");
     await page.waitForSelector('[role="tab"][aria-selected="true"]');
     const tab = await navStyle(page.locator('[role="tab"][aria-selected="true"]'));
@@ -1141,7 +1149,7 @@ try {
   await test("the brand is the real icon inline beside the wordmark: one link to Folders; icons are linked and nothing is fetched from elsewhere", async () => {
     await page.goto(base + "/#/settings");
     await page.waitForSelector("main h1");
-    const brand = page.locator("header.top a.brand");
+    const brand = page.locator("header.rail a.brand");
     assert.equal(await brand.getAttribute("aria-label"), "Keepsake, Folders");
     assert.equal(await brand.getAttribute("href"), "#/folders");
     assert.equal(await brand.locator("svg.logo").count(), 1, "the logo is inline, not an image request");
@@ -1151,8 +1159,8 @@ try {
     assert.equal((await brand.locator(".wordmark").innerText()).trim(), "Keepsake");
     assert.equal(await brand.locator(".wm-sub").isVisible(), true, "the lighter 'for iCloud' shows on wide screens");
     assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector(".brand .wordmark")).fontWeight), "700");
-    const bar = await page.locator("header.top").boundingBox();
-    assert.ok(bar.height <= 64, `the bar stays compact (${bar.height}px)`);
+    const bar = await page.locator("header.rail").boundingBox();
+    assert.ok(bar.width <= 240 && bar.x === 0 && bar.height >= 700, `a slim rail at the left, full height (${bar.width}x${bar.height})`);
     assert.equal(await page.locator('link[rel="icon"][href="/favicon.svg"]').count(), 1);
     assert.equal(await page.locator('link[rel="icon"][href="/favicon-32.png"]').count(), 1);
     assert.equal(await page.locator('link[rel="apple-touch-icon"][href="/touch-icon.png"]').count(), 1);
@@ -1226,7 +1234,7 @@ try {
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 
-  await test("phone layout: stacked rows with the strip under the folder name and a compact top bar", async () => {
+  await test("phone layout: one column of cards, a slim top bar and the menu as a tab bar on the bottom edge", async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(base + "/#/folders");
     await page.waitForSelector(".job");
@@ -1236,8 +1244,11 @@ try {
     const strip = await first.locator(".strip").boundingBox();
     assert.ok(strip.y >= name.y + name.height - 1, "strip sits under the folder name");
     assert.ok(strip.x < 60, "strip starts at the left edge of the row");
-    const top = await page.locator("header.top").boundingBox();
+    const top = await page.locator("header.rail").boundingBox();
     assert.ok(top.height < 130, `top bar is compact (${top.height}px)`);
+    const tabs = await page.evaluate(() => { const n = document.getElementById("nav").getBoundingClientRect();
+      return { bottom: Math.round(n.bottom), width: Math.round(n.width), heights: [...document.querySelectorAll("#nav a")].map((a) => Math.round(a.getBoundingClientRect().height)) }; });
+    assert.ok(tabs.bottom === 844 && tabs.width === 390 && tabs.heights.every((h) => h >= 44), "the tab bar sits on the bottom edge with tap-sized tabs: " + JSON.stringify(tabs));
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 
@@ -1473,7 +1484,7 @@ try {
     assert.equal(await page.locator(".checklist").count(), 0);
   });
 
-  await test("pause everything: presets, a custom time, resume, and the chip in the top bar", async () => {
+  await test("pause everything: presets, a custom time, resume, and the chip in the side rail", async () => {
     await page.goto(base + "/#/settings/pause");
     await page.waitForSelector("#p-1h");
     assert.equal(await page.locator("#pause-state").innerText(), "Nothing is paused.");
@@ -1549,7 +1560,7 @@ try {
       assert.ok(chip.x >= 0 && chip.x + chip.width <= 390, `${hash}: chip inside the screen`);
       assert.ok(chip.height >= 28, "readable target");
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${hash}: no sideways scroll`);
-      assert.ok((await page.locator("header.top").boundingBox()).height < 200);
+      assert.ok((await page.locator("header.rail").boundingBox()).height < 200);
     }
     await page.goto(base + "/#/settings/pause");
     await page.waitForSelector("#p-resume");
