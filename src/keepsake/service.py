@@ -168,6 +168,8 @@ def run_detail(report: RunReport, job: Job) -> dict:
         "added": int(report.files_added), "updated": int(report.files_updated),
         "removed": int(report.files_removed),
         "removed_how": "moved to .deleted" if kept else "removed",
+        "duration_s": round(max(0.0, float(report.duration_s or 0)), 1),
+        "bytes": max(0, int(report.bytes_copied or 0)),
         "samples": [{"kind": x["kind"], "path": str(x["path"])[:DETAIL_PATH_MAX]}
                     for x in report.change_samples[:DETAIL_SAMPLES]],
     }
@@ -192,6 +194,12 @@ def clean_detail(raw: Any) -> Optional[dict]:
         and runs >= 1 else 1
     out["removed_how"] = ("removed" if raw.get("removed_how") == "removed"
                           else "moved to .deleted")
+    dur = raw.get("duration_s")      # nights recorded before these existed have none
+    if isinstance(dur, (int, float)) and not isinstance(dur, bool) and 0 <= dur < 1e7:
+        out["duration_s"] = round(float(dur), 1)
+    size = raw.get("bytes")
+    if isinstance(size, int) and not isinstance(size, bool) and size >= 0:
+        out["bytes"] = size
     if _parse(raw.get("at")):
         out["at"] = raw["at"]
     samples = []
@@ -212,7 +220,9 @@ def _combine_detail(old: Optional[dict], new: Optional[dict]) -> Optional[dict]:
     if not old or not new:
         return new
     both = {k: old[k] + new[k] for k in ("added", "updated", "removed")}
-    return {**new, **both, "runs": old["runs"] + new["runs"],
+    more = {k: round(old[k] + new[k], 1) for k in ("duration_s", "bytes")
+            if k in old and k in new}
+    return {**new, **both, **more, "runs": old["runs"] + new["runs"],
             "samples": (old["samples"] + new["samples"])[:DETAIL_SAMPLES]}
 
 

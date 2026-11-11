@@ -302,6 +302,30 @@ class StatusPublisherTests(unittest.TestCase):
             "hubdisc/sensor/keepsake_photolibrary_status/config"])
         self.assertEqual(body["name"], "Photo Library Status")
 
+    def test_the_status_carries_the_last_days_with_seconds_and_bytes(self):
+        today = self.svc.today()
+        detail = {"added": 3, "updated": 1, "removed": 0, "runs": 2, "at": "2026-11-10T14:22:29+00:00",
+                  "duration_s": 129.04, "bytes": 4096,
+                  "samples": [{"kind": "added", "path": "private/secret-name.heic"}]}
+        self.svc.state["PhotoLibrary"] = {"result": "ok", "last_run": "2026-11-10T10:00:00+00:00",
+                                          "last_success": "2026-11-10T10:00:00+00:00",
+                                          "duration_s": 129.0,
+                                          "history": [{"day": today, "outcome": "copied", "detail": detail},
+                                                      {"day": "2000-01-01", "outcome": "nothing"}]}
+        self.tick()
+        state = json.loads(self.broker.retained()["keepsake/status/photolibrary"])
+        self.assertEqual(state["duration_s"], 129.0)
+        self.assertEqual(state["history"], [{"day": today, "outcome": "copied", "runs": 2, "files": 4,
+                                             "removed": 0, "bytes": 4096, "duration_s": 129.0,
+                                             "at": "2026-11-10T14:22:29+00:00"}])
+        self.assertNotIn("secret-name", json.dumps(state))          # no example paths
+        self.assertLess(len(json.dumps(state)), 2000)
+
+    def test_a_folder_with_no_history_publishes_an_empty_list(self):
+        self.tick()
+        state = json.loads(self.broker.retained()["keepsake/status/photolibrary"])
+        self.assertEqual((state["history"], state["duration_s"]), ([], 0.0))
+
     def test_state_is_published_only_when_it_changes(self):
         self.tick()
         first = len(self.broker.publishes)

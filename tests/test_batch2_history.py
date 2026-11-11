@@ -23,8 +23,10 @@ from tests.test_service import Base
 TODAY = "2026-11-07"
 
 
-def report(added=0, updated=0, removed=0, error="", started="2026-11-07T03:00:00+00:00"):
+def report(added=0, updated=0, removed=0, error="", started="2026-11-07T03:00:00+00:00",
+           duration_s=0.0, bytes_copied=0):
     r = RunReport(job="photos", result="failed" if error else "ok", error=error, started=started)
+    r.duration_s, r.bytes_copied = duration_s, bytes_copied
     for i in range(added):
         r.note_change("added", f"a{i}.jpg")
     for i in range(updated):
@@ -65,6 +67,22 @@ class MergeDetail(unittest.TestCase):
 
     def detail(self, **kw):
         return run_detail(report(**kw), make_job())
+
+    def test_a_run_records_its_seconds_and_bytes_and_two_copies_add_up(self):
+        one = self.detail(duration_s=100.04, bytes_copied=1000, added=2)
+        two = self.detail(duration_s=29.0, bytes_copied=24, added=1)
+        self.assertEqual((one["duration_s"], one["bytes"]), (100.0, 1000))
+        out = self.merged(self.merged([], "copied", one), "copied", two)
+        d = out[-1]["detail"]
+        self.assertEqual((d["duration_s"], d["bytes"], d["runs"]), (129.0, 1024, 2))
+
+    def test_a_night_stored_before_seconds_existed_reads_without_them(self):
+        d = clean_detail({"added": 1, "updated": 0, "removed": 0})
+        self.assertNotIn("duration_s", d)
+        self.assertNotIn("bytes", d)
+        d = clean_detail({"added": 1, "updated": 0, "removed": 0, "duration_s": True, "bytes": -5})
+        self.assertNotIn("duration_s", d)
+        self.assertNotIn("bytes", d)
 
     def test_a_night_with_no_detail_stays_without_one(self):
         out = self.merged([{"day": "2026-11-05", "outcome": "copied"}], "nothing", None)
