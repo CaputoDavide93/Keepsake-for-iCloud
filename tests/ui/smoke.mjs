@@ -90,6 +90,27 @@ try {
     assert.match(await page.locator(".key").innerText(), /Copied\s+Nothing new\s+Paused or failed\s+No run/);
   });
 
+  await test("the page scales with the screen: base size at 1280, bigger bars and cards on a wide screen, the same bars on a small one", async () => {
+    const sizes = {};
+    for (const [w, h] of [[1280, 800], [1920, 1080], [2560, 1440]]) {
+      const c = await browser.newContext({ viewport: { width: w, height: h } });
+      const p = await c.newPage();
+      await p.goto(base + "/#/folders");
+      await p.waitForSelector(".job");
+      sizes[w] = {
+        root: await p.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize)),
+        bar: await p.locator('.job[data-job="photos"] .strip .nb').first().evaluate((el) => parseFloat(getComputedStyle(el, "::before").height)),
+        card: Math.round((await p.locator('.job[data-job="photos"]').boundingBox()).width),
+      };
+      await c.close();
+    }
+    assert.equal(sizes[1280].root, 16, "unchanged up to a 1280 window");
+    assert.ok(sizes[1920].root >= 19 && sizes[1920].root <= 20, `1920 root ${sizes[1920].root}`);
+    assert.equal(sizes[2560].root, 24, "capped at one and a half times");
+    assert.ok(sizes[1920].bar > sizes[1280].bar * 1.15 && sizes[2560].bar > sizes[1920].bar, "the night bars grow with the screen");
+    assert.ok(sizes[2560].card > sizes[1280].card, "the cards grow too");
+  });
+
   await test("the nights strip is 14 real buttons drawn from the server's history, never green for a refused run", async () => {
     await page.goto(base + "/#/folders");
     await page.waitForSelector(".job");

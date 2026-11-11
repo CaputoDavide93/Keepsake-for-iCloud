@@ -7,6 +7,7 @@ project adheres to semantic versioning.
 ## [Unreleased]
 
 ### Changed
+- The page scales with the screen: from a 1280 pixel window it grows the text, the folder cards and the night bars together, to one and a half times the size on a 2560 pixel screen, instead of staying small. Below that nothing changes.
 - The menu is a side rail at the left (brand, the four pages with icons, the paused chip, the Light, Dark or Auto switch at the foot) instead of a top bar, and on a phone the same four pages are a tab bar fixed to the bottom edge with room for the home indicator. The page no longer stops at a fixed width: it fills the screen it is on, with a reading width kept only on Settings, Add folder and a folder's own page.
 - The page you are on is marked clearly in the side rail: the current item is bold and filled, the others are dimmer, and hover only tints. Every page has its own heading and a tab title of the form `Page · Keepsake`; a folder's own page and Add folder keep Folders lit, the Locations page keeps Settings lit, and each sub-page has a "Back to ..." link above its heading. The Settings tabs use a filled, underlined look for the selected tab.
 - The brand at the top of the side rail is the repository's own icon, inline (no extra request), beside a bolder wordmark with a lighter "for iCloud" under it on wide screens; the whole brand is one link to Folders (`aria-label` "Keepsake, Folders"). The tab icon is the same artwork: the SVG, a 32 px PNG (`/favicon-32.png`) and a 180 px touch icon (`/touch-icon.png`), served by the same static route.
