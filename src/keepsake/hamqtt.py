@@ -169,6 +169,8 @@ class StatusPublisher:
         check = (view.get("verify") or {}).get("state") or "never"
         evicted = (view.get("icloud") or {}).get("evicted") or 0
         return {"status": status, "problem": bool(problem),
+                "duration_s": float(view.get("duration_s") or 0),
+                "history": self._nights(view),
                 "last_success": view.get("last_success"),
                 "last_run": view.get("last_run"),
                 "next_run": self._future(view.get("next_run")),
@@ -177,6 +179,25 @@ class StatusPublisher:
                 "icloud_bytes": int(view.get("icloud_bytes") or 0),
                 "check": check, "evicted": int(evicted),
                 "reason": attention.get(view["name"], "")}
+
+    @staticmethod
+    def _nights(view: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """The last 14 days, one small entry each (day, outcome, files, bytes and
+        seconds of the copies, how many runs), no example paths: it rides on the
+        status entity as an attribute, so it stays a few hundred bytes."""
+        out: List[Dict[str, Any]] = []
+        for entry in view.get("history") or []:
+            detail = entry.get("detail") or {}
+            item: Dict[str, Any] = {"day": entry["day"], "outcome": entry["outcome"]}
+            if detail:
+                item["runs"] = detail.get("runs", 1)
+                item["files"] = detail.get("added", 0) + detail.get("updated", 0)
+                item["removed"] = detail.get("removed", 0)
+                for key in ("bytes", "duration_s", "at"):
+                    if key in detail:
+                        item[key] = detail[key]
+            out.append(item)
+        return out[-14:]
 
     def _future(self, iso: Any) -> Optional[str]:
         """A next run only while it is still ahead. A folder that is due now has its
