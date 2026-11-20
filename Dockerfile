@@ -1,4 +1,4 @@
-FROM alpine:3.23@sha256:ff7f0c727dd796aa36787bfcd9a64bf35a6ce72a73451b3359fde849b6703d63
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
 
 # Python's standard library does all the work (copy, compare, verify, serve the
 # web page): no pip, no build toolchain, no compiled dependencies. tzdata is
