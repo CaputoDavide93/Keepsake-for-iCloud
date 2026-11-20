@@ -13,6 +13,7 @@ import tempfile
 import threading
 import unittest
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 
 from keepsake.hamqtt import StatusPublisher, slug, title
@@ -332,8 +333,9 @@ class StatusPublisherTests(unittest.TestCase):
         self.tick()
         again = self.broker.publishes[first:]
         self.assertEqual([p[0] for p in again], ["keepsake/availability"])   # the keep-alive only
-        self.svc.state["PhotoLibrary"] = {"result": "ok", "last_run": "2026-11-10T10:00:00+00:00",
-                                          "last_success": "2026-11-10T10:00:00+00:00",
+        just_now = datetime.now(timezone.utc).isoformat()   # a fixed date goes stale and reads as a problem
+        self.svc.state["PhotoLibrary"] = {"result": "ok", "last_run": just_now,
+                                          "last_success": just_now,
                                           "files_copied": 12, "bytes_copied": 2048}
         self.tick()
         state = json.loads(self.broker.retained()["keepsake/status/photolibrary"])
