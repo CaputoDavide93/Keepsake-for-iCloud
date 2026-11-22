@@ -1157,12 +1157,11 @@ try {
     const focused = await navStyle(page.locator("#nav a:focus"));
     assert.notEqual(focused.outline, "none", "a focused menu item shows a ring");
     assert.equal(focused.outlineWidth, "3px");
-    // Settings tabs: the selected tab is filled and underlined, the others are plain
+    // Settings tabs: the selected tab is underlined in the accent, the others are plain
     await page.goto(base + "/#/settings/alerts");
     await page.waitForSelector('[role="tab"][aria-selected="true"]');
     const tab = await navStyle(page.locator('[role="tab"][aria-selected="true"]'));
     const otherTab = await navStyle(page.locator('[role="tab"][aria-selected="false"]').first());
-    assert.notEqual(tab.bg, "rgba(0, 0, 0, 0)");
     assert.equal(otherTab.bg, "rgba(0, 0, 0, 0)");
     assert.notEqual(tab.underline, otherTab.underline);
   });
