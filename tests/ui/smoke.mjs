@@ -87,7 +87,7 @@ try {
     assert.deepEqual(await page.locator("table.folders thead th").allInnerTexts(),
       ["Folder", "Status", "Last 14 nights", "Last run", "Verified", "Kept", "Actions"]);
     assert.match(await page.locator("main").innerText(), /Recent activity/);
-    assert.match(await page.locator(".key").innerText(), /Copied\s+Nothing new\s+Paused or failed\s+No run/);
+    assert.match(await page.locator(".key").innerText(), /Files changed\s+How long it took\s+Paused or failed\s+No run/);
   });
 
   await test("the page scales with the screen: base size at 1280, bigger bars and cards on a wide screen, the same bars on a small one", async () => {
@@ -99,7 +99,7 @@ try {
       await p.waitForSelector(".job");
       sizes[w] = {
         root: await p.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize)),
-        bar: await p.locator('.job[data-job="photos"] .strip .nb').first().evaluate((el) => parseFloat(getComputedStyle(el, "::before").height)),
+        bar: await p.locator('.job[data-job="photos"] .plot').evaluate((el) => el.getBoundingClientRect().height),
         card: Math.round((await p.locator('.job[data-job="photos"]').boundingBox()).width),
       };
       await c.close();
@@ -107,7 +107,7 @@ try {
     assert.equal(sizes[1280].root, 16, "unchanged up to a 1280 window");
     assert.ok(sizes[1920].root >= 19 && sizes[1920].root <= 20, `1920 root ${sizes[1920].root}`);
     assert.equal(sizes[2560].root, 24, "capped at one and a half times");
-    assert.ok(sizes[1920].bar > sizes[1280].bar * 1.15 && sizes[2560].bar > sizes[1920].bar, "the night bars grow with the screen");
+    assert.ok(sizes[1920].bar > sizes[1280].bar * 1.15 && sizes[2560].bar > sizes[1920].bar, "the heartbeat trace grows with the screen");
     assert.ok(sizes[2560].card > sizes[1280].card, "the cards grow too");
   });
 
@@ -119,10 +119,14 @@ try {
       assert.equal(await strip(name).locator("button.nb").count(), 14);
       assert.equal(await strip(name).locator("button.nb[tabindex='0']").count(), 1, "one tab stop per strip");
     }
-    const box = await strip("photos").locator(".nb").first().boundingBox();
-    assert.deepEqual([Math.round(box.width), Math.round(box.height)], [16, 32]);
-    const bar = await strip("photos").locator(".nb").first().evaluate((el) => { const c = getComputedStyle(el, "::before"); return [c.width, c.height]; });
-    assert.deepEqual(bar, ["9px", "26px"]);
+    // The 14 buttons are full-height columns that tile the trace: each is a target of at least 24 x 44 px (WCAG 2.5.8).
+    const cols = await strip("photos").locator(".nb").evaluateAll((els) => els.map((e) => { const b = e.getBoundingClientRect(); return [b.x, b.width, b.height]; }));
+    const plot = await page.locator('.job[data-job="photos"] .plot').boundingBox();
+    assert.ok(cols.every(([, w, hgt]) => w >= 24 && hgt >= 44 && Math.abs(hgt - plot.height) <= 1), JSON.stringify(cols[0]));
+    assert.ok(Math.abs(cols[0][0] - plot.x) <= 1 && Math.abs(cols[13][0] + cols[13][1] - (plot.x + plot.width)) <= 1, "the columns span the whole trace");
+    // The picture under them is a drawing only: hidden from screen readers, with the text readout beside it.
+    assert.equal(await page.locator('.job[data-job="photos"] .plot svg').getAttribute("aria-hidden"), "true");
+    assert.match(await page.locator('.job[data-job="photos"] .readout').innerText(), /^\w+ \d+ \w+\s+12 added/, "the readout starts on today");
     // Today is the last bar: photos copied 12 files, projects was refused by the shrink guard, music never ran.
     const last = (name) => strip(name).locator(".nb").last();
     assert.equal(await last("photos").getAttribute("class"), "nb");
@@ -135,6 +139,21 @@ try {
     assert.match(await strip("projects").getAttribute("aria-label"), /1 paused or failed/);
     assert.match(await strip("music").getAttribute("aria-label"), /14 without a run/);
     assert.equal(await strip("music").getAttribute("role"), "group");
+  });
+
+  await test("a night's detail says how long the run took; deleted files show what is kept and how much time each file has left", async () => {
+    await page.goto(base + "/#/folders");
+    await page.waitForSelector(".job .strip");
+    await page.locator('.job[data-job="photos"] .strip .nb').nth(9).click();
+    await page.waitForSelector("dialog.sheet[open]");
+    assert.match(await page.locator("dialog.sheet dl.counts").innerText(), /Took\s+(\d+ min )?\d+ s/);
+    await page.keyboard.press("Escape");
+    await page.waitForSelector("dialog.sheet[open]", { state: "detached" });
+    await page.goto(base + "/#/deleted/documents");
+    await page.waitForSelector("section.group");
+    assert.match(await page.locator("dl.sumline").innerText(), /Files kept\s+3[\s\S]*Soonest to expire\s+\d+ days?[\s\S]*Kept for\s+\d+ days/);
+    assert.equal(await page.locator("section.group .life").count(), 3);
+    assert.match(await page.locator("section.group li").first().innerText(), /\d+ days? left/, "the days left stay in words");
   });
 
   const row = (path) => `.picker li.prow[data-path="${path}"]`;
@@ -1125,6 +1144,41 @@ try {
     }
   });
 
+  await test("the heartbeat meets contrast in light and dark, its readout follows the pointer, and the line only draws when motion is allowed", async () => {
+    for (const scheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto(base + "/#/folders");
+      await page.reload();
+      await page.waitForSelector(".job .strip");
+      const c = await page.evaluate(() => {
+        const css = (q, prop) => getComputedStyle(document.querySelector(q))[prop];
+        return { card: css('.job[data-job="photos"]', "backgroundColor"), readout: css('.job[data-job="photos"] .readout .ro-v', "color"),
+          dot: css('.job[data-job="photos"] .strip .nb:last-child .mk', "backgroundColor"),
+          failed: css('.job[data-job="projects"] .strip .nb.w .mk', "borderTopColor"), none: css('.job[data-job="music"] .strip .nb.e .mk', "borderTopColor"),
+          line: css('.job[data-job="photos"] .plot .ln', "stroke"), axis: css('.job[data-job="photos"] .axis span', "color"),
+          primary: css("a.btn.primary", "color"), primaryBg: css("a.btn.primary", "backgroundColor"), body: css("body", "backgroundColor") };
+      });
+      for (const [name, color, min] of [["dot", c.dot, 3], ["failed ring", c.failed, 3], ["no-run ring", c.none, 3], ["line", c.line, 3], ["readout", c.readout, 4.5], ["axis", c.axis, 4.5]])
+        assert.ok(contrast(color, c.card) >= min, `${scheme}: ${name} ${contrast(color, c.card).toFixed(2)} on the card`);
+      assert.ok(contrast(c.primary, c.primaryBg) >= 4.5, `${scheme}: primary button ${contrast(c.primary, c.primaryBg).toFixed(2)}`);
+    }
+    await page.emulateMedia({ colorScheme: null });
+    // hover a night: the readout names that night; leave: it goes back to today
+    const readout = page.locator('.job[data-job="photos"] .readout');
+    const today = await readout.innerText();
+    await page.locator('.job[data-job="photos"] .strip .nb').nth(9).hover();
+    assert.notEqual(await readout.innerText(), today);
+    assert.match(await readout.innerText(), /added/);
+    await page.mouse.move(0, 400);
+    assert.equal(await readout.innerText(), today);
+    // reduced motion: no animation on the line or its dots
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.reload();
+    await page.waitForSelector(".job .strip");
+    assert.equal(await page.locator(".trace.draw .plot svg").first().evaluate((el) => getComputedStyle(el).animationName), "none");
+    await page.emulateMedia({ reducedMotion: null });
+  });
+
   await test("the page you are on is unmistakable: bold and filled; hover and focus look different; AA contrast in light and dark", async () => {
     await page.goto(base + "/#/activity");
     await page.waitForSelector("main h1");
@@ -1394,12 +1448,12 @@ try {
     assert.deepEqual(stops, { self: "0", others: 0 });
   });
 
-  await test("on a phone a night opens as a bottom sheet and the strip fits the row with 44px-tall bars", async () => {
+  await test("on a phone a night opens as a bottom sheet and the trace fits the row with 44px-tall columns", async () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(base + "/#/folders");
     await page.waitForSelector(".job");
     const bars = await page.locator('.job[data-job="photos"] .strip .nb').evaluateAll((els) => els.map((e) => { const b = e.getBoundingClientRect(); return [Math.round(b.width * 10) / 10, Math.round(b.height)]; }));
-    assert.ok(bars.every(([w, h]) => w >= 24 && h === 44), JSON.stringify(bars[0]));
+    assert.ok(bars.every(([w, h]) => w >= 24 && h >= 44), JSON.stringify(bars[0]));
     await page.locator('.job[data-job="photos"] .strip .nb').last().click();
     await page.waitForSelector("dialog.sheet[open]");
     await page.waitForTimeout(450);

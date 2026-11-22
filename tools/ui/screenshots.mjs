@@ -51,7 +51,7 @@ try {
           await page.waitForSelector(".chosen-list li:nth-child(2)");
         }
         if (name === "folders") await page.waitForSelector(".job .strip");
-        await page.waitForTimeout(250);
+        await page.waitForTimeout(name === "folders" ? 1500 : 250);     // the heartbeat draws itself once: wait for it to finish
         await page.screenshot({ path: file(name), fullPage: true });
       }
       // A night's detail (a seeded night that has detail), as the sheet it opens in.
