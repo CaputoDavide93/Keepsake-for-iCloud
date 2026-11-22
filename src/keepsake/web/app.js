@@ -335,7 +335,8 @@
         body.push(h("dl", { class: "counts" }, [
           h("dt", null, "Added"), h("dd", null, String(d.added)),
           h("dt", null, "Updated"), h("dd", null, String(d.updated)),
-          h("dt", null, d.removed_how === "removed" ? "Removed" : "Moved to .deleted"), h("dd", null, String(d.removed))]));
+          h("dt", null, d.removed_how === "removed" ? "Removed" : "Moved to .deleted"), h("dd", null, String(d.removed)),
+          typeof d.duration_s === "number" ? [h("dt", null, "Took"), h("dd", null, fmtSecs(d.duration_s))] : null]));
         var total = d.added + d.updated + d.removed;
         if (d.samples.length) body.push(h("details", { open: true }, [
           h("summary", null, total > d.samples.length ? "First " + d.samples.length + " of " + total + " changed files" : "Changed files"),
@@ -365,31 +366,113 @@
     };
     openSheet(dlg, bar);
   }
+  // The heartbeat of one folder: its last 14 nights as a trace. The line is files changed per night, the dotted line is how
+  // long the run took, a refused or failed night is a red ring on the baseline and a night without a run is a grey ring.
+  // The drawing is only a picture (aria-hidden); the 14 buttons over it are the real control, exactly as before.
+  var SVG_NS = "http://www.w3.org/2000/svg", PAD_B = 10, PAD_T = 14, drawnTraces = {};
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS(SVG_NS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+    return el;
+  }
+  // "45 s", "1 min 58 s", "2 h 5 min"
+  function fmtSecs(n) {
+    if (n < 1) return "under 1 s";
+    var s = Math.round(n);
+    if (s < 60) return s + " s";
+    var m = Math.floor(s / 60);
+    if (m < 60) return m + " min" + (s % 60 ? " " + (s % 60) + " s" : "");
+    return Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "");
+  }
+  function nightPoint(day, entry) {
+    var o = entry && entry.outcome, d = entry && entry.detail;
+    var kind = o === "copied" ? "copied" : o === "nothing" ? "nothing" : o === "paused" ? "failed" : "none";
+    var files = kind === "nothing" ? 0 : kind === "copied" && d ? d.added + d.updated + d.removed : null;
+    return { day: day, entry: entry, kind: kind, files: files, dur: d && typeof d.duration_s === "number" && kind !== "failed" ? d.duration_s : null };
+  }
+  // One line of text for the readout above the trace: the date, then what that night did.
+  function nightReadout(p) {
+    var d = p.entry && p.entry.detail, what;
+    if (p.kind === "none") what = "no run";
+    else if (p.kind === "failed") what = "refused or failed" + (d && d.error ? ": " + (d.error.length > 70 ? d.error.slice(0, 69) + "\u2026" : d.error) : "");
+    else if (p.kind === "nothing") what = "nothing new";
+    else what = d && countsText(d) ? countsText(d) : "copied";
+    if (p.dur !== null) what += " \u00b7 took " + fmtSecs(p.dur);
+    return [dayLabel(p.day), what];
+  }
   function nightsStrip(j, today) {
     var seen = {}, counts = { copied: 0, nothing: 0, paused: 0, none: 0 };
     (j.history || []).forEach(function (e) { seen[e.day] = e; });
-    var bars = [];
-    for (var i = NIGHTS - 1; i >= 0; i--) {
-      (function (day, entry) {
-        var o = entry && entry.outcome;
-        var known = o === "copied" || o === "nothing" || o === "paused";
-        counts[known ? o : "none"]++;
-        var name = nightName(day, entry);
-        bars.push(h("button", { type: "button", class: "nb" + (!known ? " e" : o === "nothing" ? " n" : o === "paused" ? " w" : ""),
-          "data-focus": nightKey(j, day), "data-day": day, tabindex: day === today ? "0" : "-1", "aria-label": name, title: name,
-          onclick: function (e) { openNight(j, day, entry, e.currentTarget); },
-          onkeydown: function (e) {
-            var all = Array.prototype.slice.call(e.currentTarget.parentNode.children), at = all.indexOf(e.currentTarget);
-            var to = e.key === "ArrowLeft" ? at - 1 : e.key === "ArrowRight" ? at + 1 : e.key === "Home" ? 0 : e.key === "End" ? all.length - 1 : -1;
-            if (to < 0 || to >= all.length) return;
-            e.preventDefault();
-            all.forEach(function (b) { b.setAttribute("tabindex", "-1"); });
-            all[to].setAttribute("tabindex", "0"); all[to].focus();
-          } }));
-      })(dayAdd(today, -i), seen[dayAdd(today, -i)]);
+    var pts = [];
+    for (var i = NIGHTS - 1; i >= 0; i--) pts.push(nightPoint(dayAdd(today, -i), seen[dayAdd(today, -i)]));
+    var maxFiles = 1, maxDur = 1;
+    pts.forEach(function (p) { if (p.files) maxFiles = Math.max(maxFiles, p.files); if (p.dur) maxDur = Math.max(maxDur, p.dur); });
+    // the picture: 14 columns of 10 units in a 140 x 100 box, stretched to the plot (strokes keep their width)
+    var X = function (n) { return (n + 0.5) * 10; };
+    var pct = function (p) { return PAD_B + p * (100 - PAD_B - PAD_T); };            // 0..1 up from the baseline, in percent of the plot height
+    var Y = function (p) { return 100 - pct(p); };
+    pts.forEach(function (p, n) {
+      p.x = X(n);
+      p.up = p.kind === "copied" ? (p.files === null ? 0.12 : p.files ? 0.14 + 0.86 * p.files / maxFiles : 0.14) : 0;
+      p.y = Y(p.up);
+      p.dy = p.dur === null ? null : Y(0.2 + 0.7 * p.dur / maxDur);
+    });
+    var done = function (p) { return p.kind === "copied" || p.kind === "nothing"; };
+    var svg = svgEl("svg", { viewBox: "0 0 140 100", preserveAspectRatio: "none", "aria-hidden": "true", focusable: "false" });
+    svg.appendChild(svgEl("line", { class: "base", x1: "0", y1: String(Y(0)), x2: "140", y2: String(Y(0)) }));
+    pts.forEach(function (p) { if (p.kind === "failed") svg.appendChild(svgEl("rect", { class: "band", x: String(p.x - 5), y: "0", width: "10", height: "100" })); });
+    // runs of finished nights: the area and the line; a lone night is only its dot
+    function runsOf(test) {
+      var out = [], cur = [];
+      pts.forEach(function (p) { if (test(p)) cur.push(p); else { if (cur.length > 1) out.push(cur); cur = []; } });
+      if (cur.length > 1) out.push(cur);
+      return out;
     }
+    var line = function (run, yk) { return run.map(function (p, n) { return (n ? "L" : "M") + p.x + " " + p[yk]; }).join(" "); };
+    runsOf(done).forEach(function (run) {
+      svg.appendChild(svgEl("path", { class: "ar", d: line(run, "y") + " L" + run[run.length - 1].x + " " + Y(0) + " L" + run[0].x + " " + Y(0) + " Z" }));
+    });
+    for (var c = 0; c < pts.length - 1; c++) {
+      var a = pts[c], b = pts[c + 1];
+      if (done(a) && done(b)) continue;
+      svg.appendChild(svgEl("path", { class: "cn " + (a.kind === "failed" || b.kind === "failed" ? "failed" : "none"), d: "M" + a.x + " " + a.y + " L" + b.x + " " + b.y }));
+    }
+    runsOf(function (p) { return p.dy !== null; }).forEach(function (run) { svg.appendChild(svgEl("path", { class: "du", d: line(run, "dy") })); });
+    runsOf(done).forEach(function (run) { svg.appendChild(svgEl("path", { class: "ln", d: line(run, "y") })); });
+    var rd = { d: h("span", { class: "ro-d" }), v: h("span", { class: "ro-v" }) };
+    var showNight = function (p) { var t = nightReadout(p); rd.d.textContent = t[0]; rd.v.textContent = t[1]; };
+    var last = pts[pts.length - 1];
+    showNight(last);
+    var bars = pts.map(function (p) {
+      var entry = p.entry, day = p.day, o = entry && entry.outcome;
+      var known = o === "copied" || o === "nothing" || o === "paused";
+      counts[known ? o : "none"]++;
+      var name = nightName(day, entry);
+      var mk = h("span", { class: "mk", "aria-hidden": "true" });
+      mk.style.bottom = pct(p.up) + "%";
+      return h("button", { type: "button", class: "nb" + (!known ? " e" : o === "nothing" ? " n" : o === "paused" ? " w" : ""),
+        "data-focus": nightKey(j, day), "data-day": day, tabindex: day === today ? "0" : "-1", "aria-label": name, title: p.dur === null ? name : name + ", took " + fmtSecs(p.dur),
+        onpointerenter: function () { showNight(p); }, onfocus: function () { showNight(p); },
+        onclick: function (e) { openNight(j, day, entry, e.currentTarget); },
+        onkeydown: function (e) {
+          var all = Array.prototype.slice.call(e.currentTarget.parentNode.children), at = all.indexOf(e.currentTarget);
+          var to = e.key === "ArrowLeft" ? at - 1 : e.key === "ArrowRight" ? at + 1 : e.key === "Home" ? 0 : e.key === "End" ? all.length - 1 : -1;
+          if (to < 0 || to >= all.length) return;
+          e.preventDefault();
+          all.forEach(function (b) { b.setAttribute("tabindex", "-1"); });
+          all[to].setAttribute("tabindex", "0"); all[to].focus();
+        } }, mk);
+    });
     var label = "Last " + NIGHTS + " nights: " + counts.copied + " copied, " + counts.nothing + " nothing new, " + counts.paused + " paused or failed, " + counts.none + " without a run. Each night opens its detail";
-    return h("div", { class: "strip", role: "group", "aria-label": label }, bars);
+    var strip = h("div", { class: "strip", role: "group", "aria-label": label,
+      onpointerleave: function () { showNight(last); },
+      onfocusout: function (e) { if (!e.relatedTarget || !strip.contains(e.relatedTarget)) showNight(last); } }, bars);
+    var first = !drawnTraces[j.name];                  // the line draws itself once per folder, not at every refresh
+    drawnTraces[j.name] = true;
+    return h("div", { class: "trace" + (first ? " draw" : "") }, [
+      h("div", { class: "readout", "aria-hidden": "true" }, [rd.d, rd.v]),
+      h("div", { class: "plot" }, [svg, strip]),
+      h("div", { class: "axis", "aria-hidden": "true" }, [h("span", null, dayShort(pts[0].day)), h("span", null, "Today")])]);
   }
 
   function shrank(j) { return j.status === "failed" && /shrank|moved or gone/.test(j.error); }
@@ -793,7 +876,7 @@
       if (!s.jobs.length) return;
       box.appendChild(tableView(s));
       box.appendChild(h("div", { class: "key" }, [
-        h("span", { class: "kc" }, "Copied"), h("span", { class: "kn" }, "Nothing new"), h("span", { class: "kw" }, "Paused or failed"), h("span", { class: "e" }, "No run")]));
+        h("span", { class: "kc" }, "Files changed"), h("span", { class: "kd" }, "How long it took"), h("span", { class: "kw" }, "Paused or failed"), h("span", { class: "e" }, "No run")]));
       box.appendChild(h("section", { class: "recent", "aria-labelledby": "recent-h" }, [
         h("h2", { id: "recent-h" }, "Recent activity"),
         recent.length ? recent.map(function (e) {
@@ -1471,7 +1554,10 @@
           h("button", { type: "button", class: "btn", id: "job-check", "data-focus": "check:" + j.name, disabled: hasWork(j), onclick: function (e) { kick(); startCheck(j, e.currentTarget, none); } }, "Check a copy")]),
         h("p", { class: "hint" }, "Preview reads the source and the iCloud folder and tells you what a sync would add, update and move to .deleted, and whether a guard would refuse it. It changes nothing."),
         j.enabled ? null : h("p", { class: "hint" }, "This folder is paused, so it cannot be synced until it is enabled below. A preview still works.")]);
-      setView(j.name + " \u00b7 Folder settings", [backLink("#/folders", "Back to Folders"), h("h1", null, j.name), h("p", { class: "lead" }, "Folder settings"), runCard, form, danger]);
+      setView(j.name + " \u00b7 Folder settings", [backLink("#/folders", "Back to Folders"), h("h1", null, j.name), h("p", { class: "lead" }, "Folder settings"), runCard,
+        h("section", { class: "card trace-card mt24", "aria-labelledby": "jh-h" }, [h("h2", { id: "jh-h", class: "mt0" }, "Last " + NIGHTS + " nights"), nightsStrip(j, state.status.today),
+          h("p", { class: "hint" }, "The line is files changed each night and the dotted line is how long the run took. Press a night to see what it did.")]),
+        form, danger]);
     }).catch(function (e) { fail(e); location.hash = "#/folders"; });
   }
 
@@ -1509,13 +1595,21 @@
         if (!byDate[e.date]) { byDate[e.date] = { date: e.date, entries: [], bytes: 0 }; groups.push(byDate[e.date]); }
         byDate[e.date].entries.push(e); byDate[e.date].bytes += e.size;
       });
+      var kept = d.entries.length, total = d.entries.reduce(function (n, e) { return n + e.size; }, 0), soon = Math.min.apply(null, d.entries.map(function (e) { return e.days_left; }));
+      box.appendChild(h("dl", { class: "sumline", "aria-label": "What is kept" }, [
+        h("div", null, [h("dt", null, d.truncated ? "Files listed" : "Files kept"), h("dd", null, String(kept))]),
+        h("div", null, [h("dt", null, d.truncated ? "Size listed" : "Total size"), h("dd", null, fmtBytes(total))]),
+        h("div", null, [h("dt", null, "Soonest to expire"), h("dd", null, soon + (soon === 1 ? " day" : " days"))]),
+        d.keep_days ? h("div", null, [h("dt", null, "Kept for"), h("dd", null, d.keep_days + (d.keep_days === 1 ? " day" : " days"))]) : null]));
       box.appendChild(h("div", { class: "row between" }, [
         h("p", { class: "muted mt0" }, plural(groups.length, "date") + " with kept files."),
         h("button", { type: "button", class: "btn", id: "restore-everything", onclick: function (ev) { restoreMany(null, ev.currentTarget); } }, "Restore everything kept")]));
       groups.forEach(function (g) {
         var rows = g.entries.map(function (e) {
+          var life = h("span", { class: "life" + (e.days_left <= 3 ? " low" : ""), "aria-hidden": "true" }, h("i"));
+          life.firstChild.style.width = Math.max(4, Math.min(100, Math.round(100 * e.days_left / Math.max(1, d.keep_days || e.days_left)))) + "%";
           return h("li", null, [
-            h("span", { class: "muted" }, fmtBytes(e.size) + ", " + e.days_left + (e.days_left === 1 ? " day" : " days") + " left"),
+            h("span", { class: "muted" }, fmtBytes(e.size) + ", " + e.days_left + (e.days_left === 1 ? " day" : " days") + " left"), life,
             h("div", { class: "row between" }, [h("strong", null, e.path),
               h("button", { type: "button", class: "btn", "aria-label": "Restore " + e.path + " from " + e.date, onclick: function (ev) { restore(e, ev.currentTarget); } }, "Restore")])]);
         });

@@ -129,7 +129,8 @@ def demo_detail(name: str, n: int, day: str) -> dict:
                for i, kind in enumerate(kinds)]
     return {"at": f"{day}T03:30:00+00:00", "runs": 1,
             "added": kinds.count("added"), "updated": kinds.count("updated"), "removed": 0,
-            "removed_how": "moved to .deleted", "samples": samples}
+            "removed_how": "moved to .deleted", "samples": samples,
+            "duration_s": float(20 + (n * 37) % 70), "bytes": (n + 1) * 1_500_000}
 
 
 def seed_history(svc: Service) -> None:
