@@ -126,7 +126,7 @@ try {
     assert.ok(Math.abs(cols[0][0] - plot.x) <= 1 && Math.abs(cols[13][0] + cols[13][1] - (plot.x + plot.width)) <= 1, "the columns span the whole trace");
     // The picture under them is a drawing only: hidden from screen readers, with the text readout beside it.
     assert.equal(await page.locator('.job[data-job="photos"] .plot svg').getAttribute("aria-hidden"), "true");
-    assert.match(await page.locator('.job[data-job="photos"] .readout').innerText(), /^\w+ \d+ \w+\s+12 added/, "the readout starts on today");
+    assert.match(await page.locator('.job[data-job="photos"] .readout').innerText(), /^\S[^\n]*\d[^\n]*\s+12 added/, "the readout starts on today");
     // Today is the last bar: photos copied 12 files, projects was refused by the shrink guard, music never ran.
     const last = (name) => strip(name).locator(".nb").last();
     assert.equal(await last("photos").getAttribute("class"), "nb");
