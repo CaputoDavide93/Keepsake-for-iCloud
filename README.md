@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/brand/icon.svg" width="120" alt="Keepsake for iCloud logo: a folder with a check mark on a blue tile">
+<img src="docs/assets/brand/icon.svg" width="120" alt="Keepsake for iCloud logo: an amber folder with a heartbeat line on a slate tile">
 
 # 🗂️ Keepsake for iCloud
 
